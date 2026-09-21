@@ -2,18 +2,19 @@
 <html lang="pl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Limit bezrobotnego 2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sędzia: mecze i zarobki</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --bg:#FBFAF6; --card:#FFFFFF; --ink:#1B1B19; --muted:#6B6B64;
   --line:rgba(0,0,0,.10); --line2:rgba(0,0,0,.16);
   --safe:#1F7A5A; --warn:#B5790F; --danger:#B23A2E;
-  --track:#ECEAE1; --accentbg:#EAF3EE; --dangerbg:#FBE3E1; --nettobg:#F2F0E8;
+  --track:#ECEAE1; --accentbg:#EAF3EE; --dangerbg:#FBE3E1; --nettobg:#F2F0E8; --warnbg:#FBF1DC;
   --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:12px;
@@ -21,37 +22,139 @@
 @media (prefers-color-scheme:dark){
   :root{--bg:#16161A;--card:#1F1F24;--ink:#ECEBE6;--muted:#9A9A92;
     --line:rgba(255,255,255,.12);--line2:rgba(255,255,255,.2);
-    --track:#2A2A30;--accentbg:#16302A;--dangerbg:#3A1E1B;--nettobg:#23231A;--safe:#4FB58C;--warn:#E0A53A;--danger:#E0695C;}
+    --track:#2A2A30;--accentbg:#16302A;--dangerbg:#3A1E1B;--nettobg:#23231A;--warnbg:#33290F;--safe:#4FB58C;--warn:#E0A53A;--danger:#E0695C;}
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:880px;margin:0 auto;padding:28px 20px 64px}
+.wrap{max-width:880px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 16px 110px}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
 h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:600;margin:0 0 10px}
 .muted{color:var(--muted);font-size:13px}
+.hidden{display:none !important}
 /* login */
 #login{max-width:380px;margin:8vh auto 0;padding:0 20px}
 #login .card{padding:26px}
 #login h1{margin-bottom:6px}
 #login .f{display:flex;flex-direction:column;gap:5px;margin-top:14px}
 #login label{font-size:12px;color:var(--muted)}
-#login input{font:inherit;font-size:15px;padding:10px 11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
+#login input{font:inherit;font-size:16px;padding:10px 11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
 #login input:focus{outline:2px solid var(--safe);outline-offset:0;border-color:transparent}
 #login .row{display:flex;gap:10px;margin-top:18px}
 #login button{flex:1;font:inherit;font-size:14px;font-weight:600;padding:11px;border-radius:8px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink)}
 #login button.primary{background:var(--safe);color:#fff;border-color:transparent}
 #login .msg{margin-top:12px;font-size:13px;min-height:18px}
 #login .msg.err{color:var(--danger)}#login .msg.ok{color:var(--safe)}
-.hidden{display:none}
-/* app */
-.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+/* shell */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
 .who{font-size:12.5px;color:var(--muted)}
 .lo{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
+#nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+#nav button{flex:1;font:inherit;font-size:13px;font-weight:600;padding:14px 4px 13px;border:0;border-top:3px solid transparent;background:transparent;color:var(--muted);cursor:pointer}
+#nav button.on{color:var(--safe);border-top-color:var(--safe)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--safe);outline-offset:2px}
+/* nawigacja miesiąc/tydzień */
 .mnav{display:flex;align-items:center;gap:8px;margin:14px 0}
-.mnav button{border:1px solid var(--line2);background:var(--card);color:var(--ink);font:inherit;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px}
+.mnav button{border:1px solid var(--line2);background:var(--card);color:var(--ink);font:inherit;width:38px;height:38px;border-radius:8px;cursor:pointer;font-size:16px}
 .mnav button:hover{background:var(--track)}
-.mnav .label{font-weight:600;font-size:15px;min-width:140px;text-align:center}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.mnav .label{font-weight:600;font-size:15px;flex:1;text-align:center}
+/* przełącznik widoku */
+.seg{display:flex;background:var(--track);border-radius:10px;padding:3px;gap:2px;margin:12px 0}
+.seg button{flex:1;font:inherit;font-size:14px;font-weight:600;padding:9px;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+/* karta meczu */
+.dh{font-size:17px;font-weight:600;margin:6px 0 12px}
+.mcard{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--safe);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer}
+.mcard:active{background:var(--track)}
+.mt{font-size:15px;font-weight:500;line-height:1.2}
+.mt small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.mtitle{font-weight:600;font-size:14.5px}
+.msub{color:var(--muted);font-size:13px}
+.mr{text-align:right}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--track)}
+.mamt{font-size:13px;margin-top:4px;color:var(--danger);font-weight:600}
+.mamt.ok{color:var(--safe)}
+.wd{margin-bottom:14px}
+.wdh{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 6px}
+.wd.today .wdh{color:var(--safe)}
+.none{font-size:13px;color:var(--muted);opacity:.7;padding:0 0 2px}
+.empty{color:var(--muted);font-size:14px;padding:16px 0}
+.sumline{font-size:13px;color:var(--muted);margin:0 0 12px}
+/* siatka miesiąca */
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0 16px}
+.mh{text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
+.mday{aspect-ratio:1/1;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:inherit;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:0}
+.mday.out{opacity:.35}
+.mday.today{border-color:var(--safe);font-weight:700}
+.mday.sel{background:var(--accentbg);border-color:var(--safe)}
+.mdots{display:flex;gap:2px;height:6px}
+.mdot{width:5px;height:5px;border-radius:50%;background:var(--safe)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
+.bar button{font:inherit;font-size:13px;font-weight:500;padding:8px 14px;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
+.bar button:hover{background:var(--track)}
+.bar select{font:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
+/* dodawanie */
+.drop{display:flex;flex-direction:column;gap:10px}
+.filebtn{display:block;text-align:center;padding:22px 12px;border:2px dashed var(--line2);border-radius:var(--r);cursor:pointer;font-weight:600;background:var(--bg)}
+.filebtn:active{background:var(--track)}
+.addbtn{font:inherit;font-size:15px;font-weight:600;padding:12px 18px;border:0;border-radius:8px;background:var(--safe);color:#fff;cursor:pointer;min-height:44px}
+.addbtn:disabled{opacity:.5}
+.addbtn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line2)}
+.addbtn.danger{background:var(--card);color:var(--danger);border:1px solid var(--line2)}
+.msgline{font-size:13.5px;min-height:20px;margin-top:10px}
+.msgline.err{color:var(--danger)}
+.warnbox{background:var(--warnbg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.warnbox li{margin-left:16px}
+.rcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.rcard.off{opacity:.5}
+.rcard.warn{border-color:var(--warn)}
+.rtop{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600}
+.rtop input{width:20px;height:20px;flex:none}
+.tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--warnbg);color:var(--warn);margin-left:auto}
+.rmatch{font-size:13.5px;margin:6px 0 0 30px}
+.rsum{font-size:12.5px;color:var(--muted);margin:2px 0 0 30px}
+.rcard details{margin:8px 0 0 30px}
+.rcard summary{font-size:13px;font-weight:600;color:var(--safe);cursor:pointer;padding:4px 0}
+.savebar{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));padding:10px 0;background:linear-gradient(to bottom,transparent,var(--bg) 35%)}
+.savebar .addbtn{width:100%}
+/* formularze */
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:12px;color:var(--muted)}
+.f input,.f select{font:inherit;font-size:16px;padding:8px 9px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.f input.num{text-align:right}
+.f.chk{flex-direction:row;align-items:center;gap:8px}
+.f.chk input{width:18px;height:18px}
+.f.chk label{font-size:14px;color:var(--ink)}
+.egrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+.egrid .full{grid-column:1/-1}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:none;align-items:flex-end;justify-content:center}
+#modal.on{display:flex}
+#modal .sheet{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))}
+#modal .btns{display:flex;gap:8px;margin-top:16px}
+#modal .btns .addbtn{flex:1}
+/* płatności */
+.counter{margin-bottom:14px}
+.cbig{font-size:30px;font-weight:500;letter-spacing:-.02em}
+.cbig small{font-size:14px;color:var(--muted);font-weight:400}
+.pbar{height:12px;background:var(--track);border-radius:999px;margin:12px 0;overflow:hidden}
+.pbar div{height:100%;width:0;background:var(--safe);border-radius:999px;transition:width .4s}
+.two{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.two .lab{font-size:12.5px;color:var(--muted)}
+.two .val{font-size:18px;font-weight:500}
+.chips{display:flex;gap:6px;margin:4px 0 12px}
+.chips button{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--line2);border-radius:999px;background:var(--card);color:var(--muted);cursor:pointer}
+.chips button.on{background:var(--accentbg);color:var(--safe);border-color:var(--safe)}
+.prow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.prow .d{font-size:12.5px;color:var(--muted)}
+.prow .t{font-weight:600;font-size:14.5px}
+.prow .s{font-size:13px;color:var(--muted)}
+.prow .amt{text-align:right}
+.prow .amt .num{font-size:16px;font-weight:500}
+.paybtn{margin-top:6px;font:inherit;font-size:12.5px;font-weight:600;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--dangerbg);color:var(--danger);min-height:36px}
+.prow.paid .paybtn{background:var(--accentbg);color:var(--safe)}
+/* limit (dotychczasowa aplikacja) */
 .hero{margin-bottom:14px}
 .heroTop{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
 .big{font-size:32px;font-weight:500;letter-spacing:-.02em}
@@ -69,26 +172,15 @@ h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
 .netto .right{text-align:right}
 .netto .pend{font-size:20px;font-weight:600}
 .form{margin-bottom:14px}
-.form h2{font-size:15px;font-weight:600;margin:0 0 12px}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;align-items:end}
-.f{display:flex;flex-direction:column;gap:4px}
 .f.wide{grid-column:span 2;min-width:180px}
-.f label{font-size:12px;color:var(--muted)}
-.f input{font:inherit;font-size:14px;padding:8px 9px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
-.f input.num{text-align:right}
-.f input:focus{outline:2px solid var(--safe);outline-offset:0;border-color:transparent}
-.f.chk{flex-direction:row;align-items:center;gap:8px}
-.f.chk input{width:18px;height:18px}
-.f.chk label{font-size:14px;color:var(--ink)}
-.addbtn{font:inherit;font-size:14px;font-weight:600;padding:9px 16px;border:0;border-radius:8px;background:var(--safe);color:#fff;cursor:pointer;height:38px}
-.addbtn:active{transform:scale(.98)}
 .ac-wrap{position:relative}
 .ac-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:var(--card);border:1px solid var(--line2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);max-height:220px;overflow:auto;display:none}
 .ac-list.on{display:block}
 .ac-item{padding:9px 11px;font-size:14px;cursor:pointer}
 .ac-item.on,.ac-item:hover{background:var(--accentbg)}
 .ac-item b{font-weight:600}
-.entries h2{font-size:15px;font-weight:600;margin:0 0 4px}
+.entries h2{margin:0 0 4px}
 .entry{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
 .entry .d{font-size:13px;color:var(--muted);min-width:54px}
 .cat{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--track);color:var(--ink);display:inline-block}
@@ -96,27 +188,30 @@ h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
 .entry .vals .n{color:var(--muted);font-size:12.5px}
 .amt-paid{color:var(--safe);font-weight:600}
 .amt-unpaid{color:var(--danger);font-weight:600}
-.pstat{margin-top:6px;font-size:11.5px;font-weight:600;border:0;border-radius:6px;padding:3px 10px;cursor:pointer}
+.pstat{margin-top:6px;font-size:11.5px;font-weight:600;border:0;border-radius:6px;padding:5px 10px;cursor:pointer}
 .pstat.p{background:var(--accentbg);color:var(--safe)}
 .pstat.u{background:var(--dangerbg);color:var(--danger)}
 .del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;border-radius:6px}
 .del:hover{background:var(--track);color:var(--danger)}
-.empty{color:var(--muted);font-size:14px;padding:16px 0}
 .year{margin-top:14px}
-.year h2{font-size:15px;font-weight:600;margin:0 0 8px}
 .yrow{display:grid;grid-template-columns:18px 1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:13.5px}
 .yrow:hover{background:var(--track)}
 .dot{width:10px;height:10px;border-radius:50%}
 .yrow .mn{color:var(--muted)}
 .yrow .b{text-align:right}.yrow .nt{text-align:right;color:var(--muted)}
-.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
-.bar button{font:inherit;font-size:13px;font-weight:500;padding:8px 14px;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
-.bar button:hover{background:var(--track)}
 .set{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
 .set input{width:96px;font:inherit;text-align:right;padding:5px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;transition:.25s;pointer-events:none;z-index:80;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(prefers-reduced-motion:reduce){.fill,#toast{transition:none}}
+.gopt{margin-bottom:10px}
+.gopt .rtop span{font-weight:600}
+.prices summary{font-weight:600;cursor:pointer}
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;align-items:center}
+.pgrid .ph{font-size:12px;color:var(--muted)}
+.pgrid input,.pgrid2 input{font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;text-align:right}
+.pgrid2{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin-top:8px}
+.pgrid2 label{font-size:13.5px}
+@media(prefers-reduced-motion:reduce){.fill,#toast,.pbar div{transition:none}}
 </style>
 </head>
 <body>
@@ -124,7 +219,7 @@ h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
 <!-- LOGIN -->
 <div id="login">
   <div class="card">
-    <h1>Limit bezrobotnego</h1>
+    <h1>Sędzia: mecze i zarobki</h1>
     <div class="muted">Zaloguj się, aby zobaczyć swoje dane.</div>
     <div class="f"><label for="l-email">E-mail</label><input type="email" id="l-email" autocomplete="username"></div>
     <div class="f"><label for="l-pass">Hasło</label><input type="password" id="l-pass" autocomplete="current-password"></div>
@@ -140,89 +235,228 @@ h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
 <div id="app" class="hidden">
 <div class="wrap">
   <div class="topbar">
-    <h1>Limit bezrobotnego</h1>
+    <h1>Sędzia</h1>
     <div><span class="who" id="who"></span> <button class="lo" id="btn-logout">Wyloguj</button></div>
   </div>
 
-  <div class="mnav"><button id="prev">‹</button><div class="label" id="m-label"></div><button id="next">›</button></div>
-
-  <div class="card hero">
-    <div class="heroTop">
-      <div class="big num"><span id="total">0,00 zł</span> <small>/ <span id="limit-h" class="num">2 403,00 zł</span></small></div>
-      <span class="pill" id="status">OK</span>
+  <!-- KALENDARZ -->
+  <section id="tab-cal">
+    <div class="seg" id="seg">
+      <button data-v="day">Dziś</button>
+      <button data-v="week">Tydzień</button>
+      <button data-v="month">Miesiąc</button>
     </div>
-    <div class="meter"><div class="fill" id="fill"></div><div class="tick" style="left:75%"></div><div class="tick" style="left:90%"></div></div>
-    <div class="legend"><span>0</span><span>75%</span><span>90%</span><span>limit</span></div>
-    <div style="margin-top:12px;font-size:14px">Zostało w tym miesiącu: <b class="num" id="left">2 403,00 zł</b></div>
-    <div class="alert" id="alert">Przekroczono limit — tracisz status bezrobotnego. Wyrejestruj się i zarejestruj ponownie w kolejnym miesiącu.</div>
-  </div>
-
-  <div class="netto">
-    <div><div class="lab">Na czysto w tym miesiącu</div><div class="val num" id="netto-total">0,00 zł</div></div>
-    <div class="right"><div class="lab">Oczekuje na zapłatę</div><div class="pend num" id="pending">0,00 zł</div></div>
-  </div>
-
-  <div class="card form">
-    <h2>Dodaj zarobek</h2>
-    <div class="fgrid">
-      <div class="f"><label for="f-date">Data</label><input type="date" id="f-date"></div>
-      <div class="f wide"><label for="f-cat">Kategoria</label><div class="ac-wrap"><input type="text" id="f-cat" autocomplete="off" placeholder="Sędziowanie ..."><div class="ac-list" id="ac-list"></div></div></div>
-      <div class="f"><label for="f-brutto">Brutto</label><input type="number" inputmode="decimal" step="0.01" min="0" class="num" id="f-brutto" placeholder="0,00"></div>
-      <div class="f"><label for="f-netto">Netto</label><input type="number" inputmode="decimal" step="0.01" min="0" class="num" id="f-netto" placeholder="0,00"></div>
-      <div class="f chk"><input type="checkbox" id="f-paid"><label for="f-paid">Zapłacone</label></div>
-      <div class="f"><button class="addbtn" id="add-btn">Dodaj</button></div>
+    <div id="cal-body"></div>
+    <div class="bar">
+      <button id="g-sync">Wyślij do Kalendarza Google</button>
+      <button id="ics-btn">Pobierz plik .ics</button>
+      <select id="ics-rem" aria-label="Przypomnienia w pliku .ics">
+        <option value="both">Przypomnienia: dzień przed i 2 h przed</option>
+        <option value="2h">Przypomnienie: 2 h przed</option>
+        <option value="1d">Przypomnienie: dzień przed</option>
+        <option value="none">Bez przypomnień</option>
+      </select>
     </div>
-  </div>
+  </section>
 
-  <div class="card entries">
-    <h2>Wpisy — <span id="m-name2"></span></h2>
-    <div id="elist"></div>
-  </div>
+  <!-- DODAJ ZE ZRZUTU -->
+  <section id="tab-add" class="hidden">
+    <div class="card drop">
+      <h2>Dodaj mecze ze zrzutu ekranu</h2>
+      <div class="f"><label for="judge">Twoje imię i nazwisko (tak jak w tabelach)</label><input type="text" id="judge" autocomplete="off"></div>
+      <label class="filebtn" for="add-files" id="file-label">Wybierz zrzuty ekranu lub PDF</label>
+      <input type="file" id="add-files" accept="image/*,application/pdf" multiple style="display:none">
+      <button class="addbtn" id="parse-btn" disabled>Odczytaj mecze</button>
+      <div class="msgline" id="add-msg"></div>
+    </div>
+    <div id="review" style="margin-top:14px"></div>
+    <details class="card prices" id="prices" style="margin-top:14px">
+      <summary>Cennik i stawki (możesz edytować)</summary>
+      <div id="prices-body"></div>
+    </details>
+  </section>
 
-  <div class="card year">
-    <h2>Przegląd roku <span class="num" id="year-num"></span></h2>
-    <div id="ylist"></div>
-  </div>
+  <!-- PŁATNOŚCI -->
+  <section id="tab-pay" class="hidden">
+    <div class="mnav"><button id="p-prev" aria-label="Poprzedni miesiąc">‹</button><div class="label" id="p-label"></div><button id="p-next" aria-label="Następny miesiąc">›</button></div>
+    <div class="card counter">
+      <div class="cbig num"><span id="p-count">0 / 0</span> <small>zapłaconych</small></div>
+      <div class="pbar"><div id="p-bar"></div></div>
+      <div class="two">
+        <div><div class="lab">Otrzymano (netto)</div><div class="val num" id="p-paid">0,00 zł</div></div>
+        <div style="text-align:right"><div class="lab">Czeka na wpłatę (netto)</div><div class="val num" id="p-pend">0,00 zł</div></div>
+      </div>
+      <div class="muted" style="margin-top:12px">Niezapłacone za rozegrane mecze (wszystkie miesiące): <b class="num" id="p-overdue">0,00 zł</b></div>
+    </div>
+    <div class="chips" id="p-chips">
+      <button data-f="all" class="on">Wszystkie</button>
+      <button data-f="unpaid">Niezapłacone</button>
+      <button data-f="paid">Zapłacone</button>
+    </div>
+    <div id="p-list"></div>
+  </section>
 
-  <div class="bar">
-    <button id="export-btn">Eksportuj kopię</button>
-    <button id="import-btn">Importuj plik</button>
-    <input type="file" id="import-file" accept="application/json,.json" style="display:none">
-    <span style="flex:1"></span>
-    <span class="set">Limit (PLN) <input id="limit-in" class="num" type="number" step="0.01"></span>
-  </div>
+  <!-- LIMIT (dotychczasowa aplikacja) -->
+  <section id="tab-limit" class="hidden">
+    <div class="mnav"><button id="prev" aria-label="Poprzedni miesiąc">‹</button><div class="label" id="m-label"></div><button id="next" aria-label="Następny miesiąc">›</button></div>
+
+    <div class="card hero">
+      <div class="heroTop">
+        <div class="big num"><span id="total">0,00 zł</span> <small>/ <span id="limit-h" class="num">2 403,00 zł</span></small></div>
+        <span class="pill" id="status">OK</span>
+      </div>
+      <div class="meter"><div class="fill" id="fill"></div><div class="tick" style="left:75%"></div><div class="tick" style="left:90%"></div></div>
+      <div class="legend"><span>0</span><span>75%</span><span>90%</span><span>limit</span></div>
+      <div style="margin-top:12px;font-size:14px">Zostało w tym miesiącu: <b class="num" id="left">2 403,00 zł</b></div>
+      <div class="alert" id="alert">Przekroczono limit — tracisz status bezrobotnego. Wyrejestruj się i zarejestruj ponownie w kolejnym miesiącu.</div>
+    </div>
+
+    <div class="netto">
+      <div><div class="lab">Na czysto w tym miesiącu</div><div class="val num" id="netto-total">0,00 zł</div></div>
+      <div class="right"><div class="lab">Oczekuje na zapłatę</div><div class="pend num" id="pending">0,00 zł</div></div>
+    </div>
+
+    <div class="card form">
+      <h2>Dodaj zarobek ręcznie</h2>
+      <div class="fgrid">
+        <div class="f"><label for="f-date">Data</label><input type="date" id="f-date"></div>
+        <div class="f wide"><label for="f-cat">Kategoria</label><div class="ac-wrap"><input type="text" id="f-cat" autocomplete="off" placeholder="Sędziowanie ..."><div class="ac-list" id="ac-list"></div></div></div>
+        <div class="f"><label for="f-brutto">Brutto</label><input type="number" inputmode="decimal" step="0.01" min="0" class="num" id="f-brutto" placeholder="0,00"></div>
+        <div class="f"><label for="f-netto">Netto</label><input type="number" inputmode="decimal" step="0.01" min="0" class="num" id="f-netto" placeholder="0,00"></div>
+        <div class="f chk"><input type="checkbox" id="f-paid"><label for="f-paid">Zapłacone</label></div>
+        <div class="f"><button class="addbtn" id="add-btn">Dodaj</button></div>
+      </div>
+    </div>
+
+    <div class="card entries">
+      <h2>Wpisy: <span id="m-name2"></span></h2>
+      <div id="elist"></div>
+    </div>
+
+    <div class="card year">
+      <h2>Przegląd roku <span class="num" id="year-num"></span></h2>
+      <div id="ylist"></div>
+    </div>
+
+    <div class="bar">
+      <button id="export-btn">Eksportuj kopię</button>
+      <button id="import-btn">Importuj plik</button>
+      <input type="file" id="import-file" accept="application/json,.json" style="display:none">
+      <span style="flex:1"></span>
+      <span class="set">Limit (PLN) <input id="limit-in" class="num" type="number" step="0.01"></span>
+    </div>
+  </section>
 </div>
+
+<nav id="nav">
+  <button data-t="cal" class="on">Kalendarz</button>
+  <button data-t="add">Dodaj</button>
+  <button data-t="pay">Płatności</button>
+  <button data-t="limit">Limit</button>
+</nav>
+</div>
+
+<!-- EDYCJA MECZU -->
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div id="m-body"></div>
+    <div class="btns">
+      <button class="addbtn" id="m-save">Zapisz</button>
+      <button class="addbtn ghost" id="m-cancel">Anuluj</button>
+      <button class="addbtn danger" id="m-del">Usuń</button>
+    </div>
+  </div>
 </div>
 <div id="toast"></div>
 
 <script>
-// ====== KONFIGURACJA SUPABASE — wklej swoje dane z panelu Supabase ======
-const SUPABASE_URL = 'https://kfujygapnwrikcowavsi.supabase.co';          // np. https://abcdef.supabase.co
-const SUPABASE_ANON_KEY = 'sb_publishable_qsbZqHu1dzDYi58uy7rNcQ_-SeSdOvz'; // klucz "anon public"
-// =======================================================================
+// ====== KONFIGURACJA SUPABASE ======
+const SUPABASE_URL = 'https://kfujygapnwrikcowavsi.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_qsbZqHu1dzDYi58uy7rNcQ_-SeSdOvz';
+// Client ID z Google Cloud (patrz instrukcja). Puste = przycisk Google wyłączony.
+const GOOGLE_CLIENT_ID = '';
+// ===================================
 
 const MNAME=['','Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const MGEN=['','stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+const DNAME=['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const DSHORT=['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
 const PLN=n=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN'}).format(Number(n)||0);
+const PLNs=n=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN',minimumFractionDigits:0}).format(Number(n)||0);
 const NB=n=>Number(n)||0;
 const pad=n=>String(n).padStart(2,'0');
 const ymOf=ds=>String(ds).slice(0,7);
 const g=id=>document.getElementById(id);
-function todayStr(){const t=new Date();return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;}
-function toast(msg){const t=g('toast');t.textContent=msg||'Zapisano ✓';t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),1700);}
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escapeHtml=esc;
 
-// local-only: limit + wybrany miesiąc
+// ---------- daty ----------
+const dstr=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pdate=s=>{const[y,m,d]=String(s).slice(0,10).split('-').map(Number);return new Date(y,m-1,d);};
+const addDays=(d,n)=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()+n);return x;};
+const mondayOf=d=>addDays(d,-((d.getDay()+6)%7));
+const todayStr=()=>dstr(new Date());
+const hm=t=>String(t||'').slice(0,5);
+const addMin=(t,min)=>{const[h,m]=t.split(':').map(Number);const x=Math.min(h*60+m+min,23*60+59);return `${pad(Math.floor(x/60))}:${pad(x%60)}`;};
+const fmtDate=ds=>{const d=pdate(ds);return `${DSHORT[d.getDay()]} ${pad(d.getDate())}.${pad(d.getMonth()+1)}`;};
+function toast(msg){const t=g('toast');t.textContent=msg||'Zapisano ✓';t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),String(msg||'').length>40?5000:2200);}
+
+// ---------- cennik domyślny (stawki brutto za mecz: [boisko, stolik]) ----------
+const RATES0={'3 LM':[200,75],'2 LK':[190,75],'U19':[160,75],'U17':[140,75],'U15':[125,75],'U14':[110,75],'U13':[110,75],'U12':[90,65],'U11':[90,65]};
+const CNBA0={a:220,b:180}; // CNBA netto: a = wt/czw sektor 1, b = wt/czw sektory 2 i 3 oraz cała środa
+
+// ---------- stan lokalny (limit, miesiąc, nazwisko, cennik, przypomnienia) ----------
 const LS='bezrobotny-state-v1';
 let state=loadState();
-function loadState(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&s.limit)return s;}catch(e){}return {limit:2403,month:todayStr().slice(0,7)};}
+function loadState(){
+  let s=null;try{s=JSON.parse(localStorage.getItem(LS));}catch(e){}
+  if(!s||!s.limit)s={limit:2403,month:todayStr().slice(0,7)};
+  if(!s.judge)s.judge='Emil Wiktorski';
+  if(!s.rem)s.rem='both';
+  if(s.gOn===undefined)s.gOn=true;
+  if(!s.rates)s.rates=JSON.parse(JSON.stringify(RATES0));
+  if(!s.cnba)s.cnba={...CNBA0};
+  return s;
+}
 function saveState(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
 
-let entries=[];   // z chmury
+let entries=[];
 let sb=null;
+
+// ---------- CENNIK (stawki brutto za mecz: [sędzia boiskowy, sędzia stolikowy]) ----------
+const AGE=['','3 LM','2 LK','U19','U17','U15','U14','U13','U12','U11'];
+const ROLES=['S1','S2','Sędzia','Sekretarz','Czas','Czas akcji','Stolik'];
+const isTable=r=>['Sekretarz','Czas','Czas akcji','Stolik'].includes(r);
+// netto: brutto - 20% = x; podatek = 12% z x (0,5 w górę do pełnych zł); netto = brutto - podatek
+function nettoOf(b){b=NB(b);if(!b)return 0;const tax=Math.floor(b*0.8*0.12+0.5+1e-9);return Math.round((b-tax)*100)/100;}
+function detectCat(s){s=String(s||'').toUpperCase();let m=s.match(/U\s?-?(19|17|15|14|13|12|11)(?!\d)/);if(m)return 'U'+m[1];if(/\b3\s?LM\b/.test(s))return '3 LM';if(/\b2\s?LK\b/.test(s))return '2 LK';return '';}
+function suggestRate(d){const r=state.rates[d.age_cat];if(!r)return 0;return isTable(d.role)?r[1]:r[0];}
+// CNBA: stałe kwoty NETTO, poza limitem (brutto = 0). Kwota ze zrzutu (np. 1 zł w eSOR) jest ignorowana.
+// Tylko wt-czw: wt/czw sektor 1 = 220; wt/czw sektory 2 i 3 oraz cała środa = 180; reszta: ręcznie
+const isCnba=d=>/cnba/i.test([d.city,d.league,d.home,d.away].join(' '));
+function cnbaNetto(d){
+  const wd=d.date?pdate(d.date).getDay():-1;
+  if(wd<2||wd>4)return 0;
+  if(wd===3)return NB(state.cnba.b);
+  const m=[d.home,d.away,d.league].join(' ').match(/sektor\s*(\d+)/i),sec=m?+m[1]:0;
+  if(sec===1)return NB(state.cnba.a);
+  if(sec===2||sec===3)return NB(state.cnba.b);
+  return 0;
+}
+// pierwszeństwo (poza CNBA): stawka podana na zrzucie > cennik > ręcznie
+function autoPrice(d){
+  if(isCnba(d)){
+    if(!d.bm)d.brutto=0;
+    if(!d.nm)d.netto=cnbaNetto(d);
+    return;
+  }
+  if(!d.bm){const sr=isTable(d.role)?d.rate_table:d.rate_field;d.brutto=NB(sr)||suggestRate(d);}
+  if(!d.nm){d.netto=nettoOf(d.brutto);}
+}
 
 // ---------- AUTH ----------
 function showLogin(){g('login').classList.remove('hidden');g('app').classList.add('hidden');}
 function showApp(email){g('login').classList.add('hidden');g('app').classList.remove('hidden');g('who').textContent=email||'';}
-
 async function doLogin(){
   const email=g('l-email').value.trim(),pass=g('l-pass').value;
   const m=g('l-msg');m.className='msg';m.textContent='Logowanie…';
@@ -234,12 +468,11 @@ async function doSignup(){
   const m=g('l-msg');m.className='msg';m.textContent='Tworzę konto…';
   const {data,error}=await sb.auth.signUp({email,password:pass});
   if(error){m.className='msg err';m.textContent='Błąd: '+error.message;return;}
-  if(data.session){m.className='msg ok';m.textContent='Konto utworzone.';}
-  else{m.className='msg ok';m.textContent='Konto utworzone. Jeśli wymagane — potwierdź e-mail, potem zaloguj się.';}
+  m.className='msg ok';m.textContent=data.session?'Konto utworzone.':'Konto utworzone. Jeśli wymagane, potwierdź e-mail, potem zaloguj się.';
 }
 async function doLogout(){await sb.auth.signOut();entries=[];showLogin();}
 
-// ---------- DANE (CHMURA) ----------
+// ---------- DANE ----------
 async function loadEntries(){
   const {data,error}=await sb.from('entries').select('*').order('date',{ascending:false});
   if(error){toast('Błąd wczytywania: '+error.message);entries=[];return;}
@@ -259,32 +492,393 @@ async function deleteEntryDB(id){
   if(error)toast('Błąd: '+error.message);
 }
 async function bulkInsert(list){
-  let added=0;
+  const out=[];
   for(let i=0;i<list.length;i+=200){
     const chunk=list.slice(i,i+200);
     const {data,error}=await sb.from('entries').insert(chunk).select();
     if(error){toast('Błąd importu: '+error.message);break;}
-    added+=(data||[]).length;
+    out.push(...(data||[]));
   }
-  return added;
+  return out;
+}
+async function togglePaid(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  e.paid=!e.paid;renderAll();
+  await updateEntryDB(id,{paid:e.paid});
+}
+const owed=e=>NB(e.netto)||NB(e.brutto)||0;
+const titleOf=e=>'E - sędziowanie'+(e.city?' '+e.city:'');
+const titleOfEntry=e=>e.start_time?titleOf(e):(e.category||'Wpis');
+
+// ---------- ZAKŁADKI ----------
+function switchTab(t){
+  ['cal','add','pay','limit'].forEach(k=>g('tab-'+k).classList.toggle('hidden',k!==t));
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  window.scrollTo(0,0);
 }
 
-// ---------- KATEGORIE (z danych) ----------
+// ---------- KALENDARZ ----------
+const cal={view:'day',wk:0,month:todayStr().slice(0,7),sel:todayStr()};
+const matchesOn=ds=>entries.filter(e=>e.start_time&&e.date===ds).sort((a,b)=>hm(a.start_time).localeCompare(hm(b.start_time)));
+function mcard(e){
+  const amt=owed(e);
+  return `<div class="mcard" data-id="${e.id}">`+
+    `<div class="mt num">${hm(e.start_time)}<small>${hm(e.end_time)}</small></div>`+
+    `<div><div class="mtitle">${esc(titleOf(e))}</div>`+
+    (e.home||e.away?`<div class="msub">${esc(e.home)} – ${esc(e.away)}</div>`:'')+
+    (e.venue?`<div class="msub">${esc(e.venue)}</div>`:'')+`</div>`+
+    `<div class="mr">${e.role?`<span class="chip">${esc(e.role)}</span>`:''}${amt?`<div class="num mamt ${e.paid?'ok':''}">${PLNs(amt)}</div>`:''}</div></div>`;
+}
+function nextMatch(){
+  const now=new Date(),key=todayStr()+' '+pad(now.getHours())+':'+pad(now.getMinutes());
+  return entries.filter(e=>e.start_time&&(e.date+' '+hm(e.start_time))>=key).sort((a,b)=>(a.date+hm(a.start_time)).localeCompare(b.date+hm(b.start_time)))[0];
+}
+function viewDay(){
+  const t=todayStr(),d=pdate(t),list=matchesOn(t);
+  let h=`<div class="dh">${DNAME[d.getDay()]}, ${d.getDate()} ${MGEN[d.getMonth()+1]}</div>`;
+  if(list.length)h+=list.map(mcard).join('');
+  else{const nx=nextMatch();h+=`<div class="empty">Dziś nie masz meczów.`+(nx?` Następny: <b>${fmtDate(nx.date)}, ${hm(nx.start_time)}</b>, ${esc(titleOf(nx))}.`:' Dodaj mecze ze zrzutu w zakładce Dodaj.')+`</div>`;}
+  return h;
+}
+function viewWeek(){
+  const mon=addDays(mondayOf(new Date()),cal.wk*7),sun=addDays(mon,6),t=todayStr();
+  let h=`<div class="mnav"><button data-nav="wk-1" aria-label="Poprzedni tydzień">‹</button><div class="label">${mon.getDate()}.${pad(mon.getMonth()+1)} – ${sun.getDate()}.${pad(sun.getMonth()+1)}</div><button data-nav="wk+1" aria-label="Następny tydzień">›</button></div>`;
+  let n=0,net=0,body='';
+  for(let i=0;i<7;i++){
+    const day=addDays(mon,i),ds=dstr(day),list=matchesOn(ds);
+    n+=list.length;list.forEach(e=>net+=owed(e));
+    body+=`<div class="wd${ds===t?' today':''}"><div class="wdh">${DNAME[day.getDay()]} ${day.getDate()}.${pad(day.getMonth()+1)}</div>${list.length?list.map(mcard).join(''):'<div class="none">brak meczów</div>'}</div>`;
+  }
+  return h+`<div class="sumline">Mecze w tygodniu: <b>${n}</b>${n?` · netto <b class="num">${PLNs(net)}</b>`:''}</div>`+body;
+}
+function viewMonth(){
+  const[y,m]=cal.month.split('-').map(Number),t=todayStr();
+  const first=new Date(y,m-1,1),last=new Date(y,m,0);
+  let h=`<div class="mnav"><button data-nav="mo-1" aria-label="Poprzedni miesiąc">‹</button><div class="label">${MNAME[m]} ${y}</div><button data-nav="mo+1" aria-label="Następny miesiąc">›</button></div>`;
+  let n=0,net=0;entries.forEach(e=>{if(e.start_time&&ymOf(e.date)===cal.month){n++;net+=owed(e);}});
+  h+=`<div class="sumline">Mecze w miesiącu: <b>${n}</b>${n?` · netto <b class="num">${PLNs(net)}</b>`:''}</div>`;
+  h+='<div class="mgrid">'+['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="mh">${x}</div>`).join('');
+  for(let d=mondayOf(first);d<=last||((d.getDay()+6)%7)!==0;d=addDays(d,1)){
+    const ds=dstr(d),c=matchesOn(ds).length,inM=d.getMonth()===m-1;
+    h+=`<button class="mday${inM?'':' out'}${ds===t?' today':''}${ds===cal.sel?' sel':''}" data-d="${ds}" aria-label="${d.getDate()}.${pad(d.getMonth()+1)}${c?', mecze: '+c:''}"><span>${d.getDate()}</span><span class="mdots">${'<i class="mdot"></i>'.repeat(Math.min(c,3))}</span></button>`;
+  }
+  h+='</div>';
+  const sd=pdate(cal.sel),list=matchesOn(cal.sel);
+  h+=`<div class="dh">${DNAME[sd.getDay()]}, ${sd.getDate()} ${MGEN[sd.getMonth()+1]}</div>`;
+  h+=list.length?list.map(mcard).join(''):'<div class="empty">Brak meczów tego dnia.</div>';
+  return h;
+}
+function renderCal(){
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cal.view));
+  g('cal-body').innerHTML=cal.view==='day'?viewDay():cal.view==='week'?viewWeek():viewMonth();
+}
+function calNav(k){
+  if(k.startsWith('wk'))cal.wk+=k==='wk+1'?1:-1;
+  else{const[y,m]=cal.month.split('-').map(Number);const d=new Date(y,m-1+(k==='mo+1'?1:-1),1);cal.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;cal.sel=cal.month===todayStr().slice(0,7)?todayStr():cal.month+'-01';}
+  renderCal();
+}
+
+// ---------- KALENDARZ GOOGLE ----------
+const GSCOPE='https://www.googleapis.com/auth/calendar.events';
+let gTok=null;
+function gToken(){ // wywołaj bezpośrednio w kliknięciu, inaczej Safari zablokuje okno logowania
+  return new Promise((res,rej)=>{
+    if(!GOOGLE_CLIENT_ID)return rej(new Error('Brak GOOGLE_CLIENT_ID w kodzie'));
+    if(gTok&&gTok.exp>Date.now()+60000)return res(gTok.t);
+    if(!window.google||!google.accounts||!google.accounts.oauth2)return rej(new Error('Skrypt Google się nie załadował, spróbuj ponownie'));
+    const c=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID,scope:GSCOPE,
+      callback:r=>{if(r.error)return rej(new Error(r.error_description||r.error));gTok={t:r.access_token,exp:Date.now()+(r.expires_in||3600)*1000};res(gTok.t);},
+      error_callback:e=>rej(new Error(e&&e.type==='popup_closed'?'Zamknięto okno logowania Google':'Nie udało się zalogować do Google'))});
+    c.requestAccessToken();
+  });
+}
+// stałe ID wydarzenia = ten sam mecz nigdy nie zdubluje się w Google (kolejne wysłanie aktualizuje)
+const gid=e=>{let s='mc'+String(e.id).toLowerCase().replace(/[^0-9a-v]/g,'');while(s.length<5)s+='0';return s.slice(0,100);};
+function gBody(e){
+  const ov=[];
+  if(state.rem==='both'||state.rem==='1d')ov.push({method:'popup',minutes:1440});
+  if(state.rem==='both'||state.rem==='2h')ov.push({method:'popup',minutes:120});
+  return {summary:titleOf(e),
+    location:[e.venue,e.city&&e.city!=='CNBA'?e.city:''].filter(Boolean).join(', '),
+    description:[e.league,(e.home||e.away)?e.home+' - '+e.away:'',e.role?'Rola: '+e.role:''].filter(Boolean).join('\n'),
+    start:{dateTime:`${e.date}T${hm(e.start_time)}:00`,timeZone:'Europe/Warsaw'},
+    end:{dateTime:`${e.date}T${hm(e.end_time||e.start_time)}:00`,timeZone:'Europe/Warsaw'},
+    colorId:'6',reminders:{useDefault:false,overrides:ov}};
+}
+async function pushGoogle(list,tok){
+  const base='https://www.googleapis.com/calendar/v3/calendars/primary/events';
+  const h={'Authorization':'Bearer '+tok,'Content-Type':'application/json'};
+  let ok=0,err='';
+  for(const e of list){
+    const body=gBody(e);
+    try{
+      let r=await fetch(base,{method:'POST',headers:h,body:JSON.stringify({...body,id:gid(e)})});
+      if(r.status===409)r=await fetch(base+'/'+gid(e),{method:'PATCH',headers:h,body:JSON.stringify({...body,status:'confirmed'})});
+      if(r.ok)ok++;else{const j=await r.json().catch(()=>({}));err=(j.error&&j.error.message)||('HTTP '+r.status);}
+    }catch(x){err=x.message;}
+  }
+  return {ok,fail:list.length-ok,err};
+}
+async function syncGoogle(){
+  if(!GOOGLE_CLIENT_ID){toast('Najpierw wpisz GOOGLE_CLIENT_ID w kodzie');return;}
+  const now=todayStr(),list=entries.filter(e=>e.start_time&&e.date>=now).sort(byTime);
+  if(!list.length){toast('Brak nadchodzących meczów');return;}
+  const tokP=gToken();
+  try{
+    const tok=await tokP;toast('Wysyłam do Kalendarza Google…');
+    const r=await pushGoogle(list,tok);
+    toast(r.fail?`Google: ${r.ok} z ${list.length}. ${r.err}`:`Kalendarz Google: ${r.ok} meczów zaktualizowanych ✓`);
+  }catch(e){toast('Google: '+e.message);}
+}
+
+// ---------- EKSPORT .ics ----------
+const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+const icsUtc=(ds,t)=>{const[y,m,d]=ds.split('-').map(Number),[h,mi]=hm(t).split(':').map(Number);return new Date(y,m-1,d,h,mi).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');};
+function exportIcs(){
+  const rem=g('ics-rem').value,now=todayStr();
+  const list=entries.filter(e=>e.start_time&&e.date>=now).sort((a,b)=>(a.date+hm(a.start_time)).localeCompare(b.date+hm(b.start_time)));
+  if(!list.length){toast('Brak nadchodzących meczów');return;}
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Sedzia//PL','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  const alarm=(trig,txt)=>['BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+txt,'TRIGGER:'+trig,'END:VALARM'];
+  list.forEach(e=>{
+    L.push('BEGIN:VEVENT','UID:'+e.id+'@sedzia','DTSTAMP:'+stamp,'DTSTART:'+icsUtc(e.date,e.start_time),'DTEND:'+icsUtc(e.date,e.end_time||e.start_time),
+      'SUMMARY:'+icsEsc(titleOf(e)),'LOCATION:'+icsEsc([e.venue,e.city&&e.city!=='CNBA'?e.city:''].filter(Boolean).join(', ')),
+      'DESCRIPTION:'+icsEsc([e.league,(e.home||e.away)?e.home+' - '+e.away:'',e.role?'Rola: '+e.role:''].filter(Boolean).join('. ')));
+    if(rem==='both'||rem==='1d')L.push(...alarm('-P1D','Mecz jutro'));
+    if(rem==='both'||rem==='2h')L.push(...alarm('-PT2H','Mecz za 2 godziny'));
+    L.push('END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  const blob=new Blob([L.join('\r\n')],{type:'text/calendar'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mecze.ics';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},100);
+  toast('Plik z '+list.length+' meczami gotowy');
+}
+
+// ---------- EDYTOR MECZU (wspólny dla zrzutu i kalendarza) ----------
+function editorHTML(d,i){
+  const opt=(arr,v)=>arr.map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${x||'—'}</option>`).join('');
+  const inp=(f,label,type,cls)=>`<div class="f ${cls||''}"><label>${label}</label><input type="${type||'text'}" data-f="${f}" value="${esc(d[f])}"></div>`;
+  return `<div class="egrid" data-i="${i}">`+
+    inp('date','Data','date','full')+inp('start','Od','time')+inp('end','Do','time')+
+    inp('city','Miasto (albo CNBA)','text','full')+inp('venue','Hala / adres','text','full')+
+    inp('home','Gospodarz')+inp('away','Gość')+
+    `<div class="f"><label>Rola</label><select data-f="role">${opt(ROLES,d.role)}</select></div>`+
+    `<div class="f"><label>Kategoria (cennik)</label><select data-f="age_cat">${opt(AGE,d.age_cat)}</select></div>`+
+    `<div class="f"><label>Brutto (zł)</label><input type="number" inputmode="decimal" step="0.01" class="num" data-f="brutto" value="${d.brutto||''}"></div>`+
+    `<div class="f"><label>Netto (zł)</label><input type="number" inputmode="decimal" step="0.01" class="num" data-f="netto" value="${d.netto||''}"></div>`+
+  `</div>`;
+}
+function setField(box,f,v){const el=box.querySelector(`[data-f="${f}"]`);if(el)el.value=v||'';}
+function wireEditor(root,getDraft,after){
+  const h=ev=>{
+    const el=ev.target.closest('[data-f]');if(!el)return;
+    const box=el.closest('[data-i]');if(!box)return;
+    const d=getDraft(+box.dataset.i);if(!d)return;
+    const f=el.dataset.f,v=el.value;
+    if(f==='brutto'){d.brutto=parseFloat(v)||0;d.bm=true;if(!d.nm){d.netto=nettoOf(d.brutto);setField(box,'netto',d.netto);}}
+    else if(f==='netto'){d.netto=parseFloat(v)||0;d.nm=true;}
+    else{
+      d[f]=v;
+      if(f==='end')d.ea=false;
+      if(f==='start'&&d.ea&&v&&!/^cnba$/i.test((d.city||'').trim())){d.end=addMin(v,d.format==='turniej'?90:120);setField(box,'end',d.end);}
+      if(f==='city'&&/^\s*cnba\s*$/i.test(v)){d.start='18:00';d.end='22:00';setField(box,'start',d.start);setField(box,'end',d.end);}
+      if(['role','age_cat','date','city','home','away','league'].includes(f)){autoPrice(d);setField(box,'brutto',d.brutto);setField(box,'netto',d.netto);}
+    }
+    if(after)after(d,box);
+  };
+  root.addEventListener('input',h);root.addEventListener('change',h);
+}
+const toRow=d=>({date:d.date,category:'Sędziowanie'+(d.city?' '+d.city:''),brutto:NB(d.brutto),netto:NB(d.netto),
+  start_time:d.start?d.start+':00':null,end_time:d.end?d.end+':00':null,city:d.city||null,venue:d.venue||null,
+  home:d.home||null,away:d.away||null,league:d.league||null,age_cat:d.age_cat||null,role:d.role||null});
+const entryToDraft=e=>({id:e.id,inc:true,date:e.date,start:hm(e.start_time),end:hm(e.end_time),city:e.city||'',venue:e.venue||'',home:e.home||'',away:e.away||'',
+  league:e.league||'',age_cat:e.age_cat||'',role:e.role||'Sędzia',format:'liga',brutto:NB(e.brutto),netto:NB(e.netto),bm:true,nm:true,ea:false});
+
+// modal (edycja zapisanego meczu)
+let editing=null;
+function openEditor(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  editing=entryToDraft(e);
+  g('m-body').innerHTML=`<h2>${esc(titleOf(e))}</h2>`+editorHTML(editing,0);
+  g('modal').classList.add('on');
+}
+function closeEditor(){g('modal').classList.remove('on');editing=null;}
+async function saveEditor(){
+  const d=editing;if(!d)return;
+  if(!d.date||!d.start||!d.end){toast('Uzupełnij datę i godziny');return;}
+  const row=toRow(d),e=entries.find(x=>x.id===d.id);
+  if(e)Object.assign(e,row);
+  closeEditor();renderAll();
+  await updateEntryDB(d.id,row);toast('Zapisano ✓');
+}
+async function deleteEditor(){
+  if(!editing||!confirm('Usunąć ten mecz?'))return;
+  const id=editing.id;entries=entries.filter(x=>x.id!==id);
+  closeEditor();renderAll();
+  await deleteEntryDB(id);toast('Usunięto');
+}
+
+// ---------- DODAWANIE ZE ZRZUTU ----------
+let draft=[];
+const setAddMsg=(t,err)=>{const m=g('add-msg');m.textContent=t||'';m.className='msgline'+(err?' err':'');};
+const loadImage=file=>new Promise((res,rej)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im);};im.onerror=()=>rej(new Error('Nie można otworzyć obrazu '+file.name));im.src=u;});
+const fileB64=file=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(new Error('Nie można odczytać pliku'));r.readAsDataURL(file);});
+async function prepFile(file){
+  if(file.type==='application/pdf')return {mediaType:'application/pdf',data:await fileB64(file)};
+  const im=await loadImage(file),w=im.naturalWidth,h=im.naturalHeight,sc=Math.min(1,2600/Math.max(w,h));
+  const c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+  return {mediaType:'image/jpeg',data:c.toDataURL('image/jpeg',0.85).split(',')[1]};
+}
+const normT=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+// ten sam mecz = ta sama data, godzina, drużyny i rola
+const keyOf=d=>[d.date,d.start,normT(d.home),normT(d.away),d.role||''].join('|');
+const isDup=d=>{const k=keyOf(d);return entries.some(e=>e.start_time&&[e.date,hm(e.start_time),normT(e.home),normT(e.away),e.role||''].join('|')===k);};
+function makeDraft(x){
+  const cnba=/cnba/i.test([x.league,x.home,x.away,x.city].join(' '));
+  const d={inc:true,dup:false,date:x.date||'',start:hm(x.time),end:'',city:x.city||'',venue:x.venue||'',home:x.home||'',away:x.away||'',league:x.league||'',
+    age_cat:AGE.includes(x.age_cat)?x.age_cat:(detectCat(x.league)||''),role:ROLES.includes(x.role)?x.role:'Sędzia',format:x.format==='turniej'?'turniej':'liga',
+    rate_field:NB(x.rate_field),rate_table:NB(x.rate_table),brutto:0,netto:0,bm:false,nm:false,ea:true};
+  if(cnba){d.city='CNBA';d.start='18:00';d.end='22:00';d.ea=false;}
+  else if(d.start)d.end=addMin(d.start,d.format==='turniej'?90:120);
+  autoPrice(d);
+  d.dup=isDup(d);d.inc=!d.dup;
+  return d;
+}
+const missing=d=>[!d.date&&'data',!d.start&&'godzina',!d.city&&'miasto',(isCnba(d)?!d.netto:!d.brutto)&&'kwota'].filter(Boolean);
+const sumLine=d=>`${d.date?fmtDate(d.date):'brak daty'} · ${d.start||'??'}–${d.end||'??'} · ${esc(d.city||'brak miasta')} · ${esc(d.role)} · `+(isCnba(d)?(d.netto?`${PLNs(d.netto)} netto (poza limitem)`:'brak kwoty'):(d.brutto?`${PLNs(d.brutto)} brutto / ${PLNs(d.netto)} netto`:'brak kwoty'));
+function renderReview(warnings){
+  const box=g('review');
+  if(!draft.length){box.innerHTML='';return;}
+  let h=`<div class="card" style="margin-bottom:12px"><h2>Sprawdź odczytane mecze</h2><div class="muted" id="rv-total"></div></div>`;
+  if(warnings&&warnings.length)h+=`<div class="warnbox"><b>Uwagi z odczytu:</b><ul style="margin:6px 0 0;padding:0">${warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>`;
+  h+='<div id="rv-list">'+draft.map((d,i)=>{const miss=missing(d);
+    return `<div class="rcard${d.inc?'':' off'}${miss.length?' warn':''}" data-i="${i}">`+
+      `<label class="rtop"><input type="checkbox" class="inc"${d.inc?' checked':''}><span class="rtitle">${esc(titleOf(d))}</span>${d.dup?'<span class="tag">już w kalendarzu</span>':''}</label>`+
+      `<div class="rmatch">${esc(d.home)} – ${esc(d.away)}</div><div class="rsum">${sumLine(d)}</div>`+
+      `<details${miss.length?' open':''}><summary>Popraw</summary>${editorHTML(d,i)}</details></div>`;}).join('')+'</div>';
+  const remOpts=[['both','dzień przed i 2 h przed'],['2h','2 h przed'],['1d','dzień przed'],['none','bez przypomnień']].map(([v,t])=>`<option value="${v}"${state.rem===v?' selected':''}>${t}</option>`).join('');
+  h+=GOOGLE_CLIENT_ID?`<div class="card gopt"><label class="rtop"><input type="checkbox" id="g-on"${state.gOn?' checked':''}><span>Dodaj też do Kalendarza Google</span></label><div class="f" style="margin:8px 0 0 30px"><label for="g-rem">Przypomnienia w Google</label><select id="g-rem">${remOpts}</select></div></div>`
+    :`<div class="muted" style="margin-bottom:10px">Kalendarz Google jest wyłączony: wpisz GOOGLE_CLIENT_ID w kodzie.</div>`;
+  h+=`<div class="savebar"><button class="addbtn" id="rv-save"></button></div>`;
+  box.innerHTML=h;updateReviewTotals();
+}
+function updateReviewTotals(){
+  const sel=draft.filter(d=>d.inc);
+  let b=0,n=0;sel.forEach(d=>{b+=NB(d.brutto);n+=NB(d.netto);});
+  const t=g('rv-total');if(t)t.innerHTML=`Zaznaczono <b>${sel.length}</b> z ${draft.length} · brutto do limitu <b class="num">${PLN(b)}</b> · netto <b class="num">${PLN(n)}</b>`;
+  const s=g('rv-save');if(s){s.textContent=`Zapisz zaznaczone (${sel.length})`;s.disabled=!sel.length;}
+}
+function updateCard(i){
+  const d=draft[i],c=document.querySelector(`#rv-list .rcard[data-i="${i}"]`);if(!c)return;
+  c.querySelector('.rtitle').textContent=titleOf(d);
+  c.querySelector('.rmatch').textContent=`${d.home} – ${d.away}`;
+  c.querySelector('.rsum').innerHTML=sumLine(d);
+  c.classList.toggle('off',!d.inc);c.classList.toggle('warn',missing(d).length>0);
+  updateReviewTotals();
+}
+async function parseFiles(){
+  const files=[...g('add-files').files];
+  if(!files.length)return;
+  if(files.length>6){setAddMsg('Wybierz maksymalnie 6 plików naraz.',true);return;}
+  const btn=g('parse-btn');btn.disabled=true;draft=[];renderReview();
+  setAddMsg('Przygotowuję pliki…');
+  try{
+    const prepared=await Promise.all(files.map(prepFile));
+    setAddMsg('Czytam mecze ze zrzutów, to potrwa kilkanaście sekund…');
+    const {data,error}=await sb.functions.invoke('parse-screenshot',{body:{files:prepared,judge:state.judge,today:todayStr()}});
+    if(error){let msg=error.message;try{const j=await error.context.json();if(j&&j.error)msg=j.error;}catch(e){}throw new Error(msg);}
+    if(data&&data.error)throw new Error(data.error);
+    const seen=new Set();let removed=0;
+    draft=(data.matches||[]).map(makeDraft).filter(d=>{const k=keyOf(d);if(seen.has(k)){removed++;return false;}seen.add(k);return true;})
+      .sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+    const warns=[...(data.warnings||[])];
+    if(removed)warns.push(`Pominięto ${removed} powtórzonych meczów (ten sam mecz był na kilku zrzutach).`);
+    if(!draft.length){setAddMsg(`Nie znalazłem meczów z nazwiskiem „${state.judge}”. Sprawdź nazwisko i czytelność zrzutu.`,true);}
+    else setAddMsg('');
+    renderReview(warns);
+  }catch(err){setAddMsg('Błąd: '+err.message,true);}
+  btn.disabled=!g('add-files').files.length;
+}
+async function saveDrafts(){
+  const sel=draft.filter(d=>d.inc);
+  if(!sel.length){toast('Nic nie zaznaczono');return;}
+  if(sel.some(d=>!d.date||!d.start||!d.end)){toast('Uzupełnij datę i godziny w zaznaczonych meczach');return;}
+  // logowanie do Google musi ruszyć od razu w kliknięciu (wymóg przeglądarki), reszta czeka
+  const tokP=(GOOGLE_CLIENT_ID&&state.gOn)?gToken():null;
+  if(tokP)tokP.catch(()=>{});
+  const btn=g('rv-save');btn.disabled=true;btn.textContent='Zapisuję…';
+  // ochrona przed duplikatami: pomijamy mecze już zapisane i powtórzone w tej paczce
+  const seen=new Set();
+  const fresh=sel.filter(d=>{const k=keyOf(d);if(isDup(d)||seen.has(k))return false;seen.add(k);return true;});
+  const skipped=sel.length-fresh.length;
+  const saved=fresh.length?await bulkInsert(fresh.map(d=>({...toRow(d),paid:false}))):[];
+  if(fresh.length&&!saved.length){updateReviewTotals();return;}
+  await loadEntries();
+  let gmsg='';
+  if(tokP&&saved.length){
+    try{const r=await pushGoogle(saved,await tokP);gmsg=r.fail?` Google: ${r.ok} z ${saved.length} (${r.err})`:` Dodano też do Google ✓`;}
+    catch(e){gmsg=' Google: '+e.message+'. Wyślij później przyciskiem w Kalendarzu.';}
+  }
+  const first=(saved[0]||sel[0]).date;
+  draft=[];g('review').innerHTML='';g('add-files').value='';g('file-label').textContent='Wybierz zrzuty ekranu lub PDF';g('parse-btn').disabled=true;setAddMsg('');
+  cal.view='month';cal.month=ymOf(first);cal.sel=first;
+  renderAll();switchTab('cal');
+  toast(`Dodano ${saved.length} meczów.`+(skipped?` Pominięto ${skipped} już zapisanych.`:'')+gmsg);
+}
+
+// ---------- CENNIK (edycja) ----------
+function renderPrices(){
+  g('prices-body').innerHTML=
+    `<div class="pgrid"><div class="ph">Kategoria (brutto)</div><div class="ph">Boisko</div><div class="ph">Stolik</div>`+
+    AGE.slice(1).map(k=>`<div>${k}</div><input type="number" inputmode="decimal" data-r="${k}" data-i="0" value="${state.rates[k][0]}"><input type="number" inputmode="decimal" data-r="${k}" data-i="1" value="${state.rates[k][1]}">`).join('')+`</div>`+
+    `<h2 style="margin-top:16px">CNBA (netto, poza limitem)</h2>`+
+    `<div class="pgrid2"><label>Wtorek i czwartek, sektor 1</label><input type="number" inputmode="decimal" data-c="a" value="${state.cnba.a}">`+
+    `<label>Wtorek i czwartek sektory 2 i 3 oraz cała środa</label><input type="number" inputmode="decimal" data-c="b" value="${state.cnba.b}"></div>`+
+    `<div class="muted" style="margin-top:10px">Zmiana dotyczy nowo odczytanych meczów. Stawka podana na zrzucie turnieju ma pierwszeństwo (nie dotyczy CNBA).</div>`+
+    `<button class="addbtn ghost" id="prices-reset" style="margin-top:12px">Przywróć domyślne</button>`;
+}
+
+// ---------- PŁATNOŚCI ----------
+const pay={month:todayStr().slice(0,7),f:'all'};
+function shiftMonth(ym,d){let[y,m]=ym.split('-').map(Number);m+=d;while(m<1){m+=12;y--;}while(m>12){m-=12;y++;}return `${y}-${pad(m)}`;}
+function monthLabel(ym){const[y,m]=ym.split('-');return `${MNAME[+m]} ${y}`;}
+const byTime=(a,b)=>(a.date+hm(a.start_time)).localeCompare(b.date+hm(b.start_time));
+function renderPay(){
+  const ym=pay.month;g('p-label').textContent=monthLabel(ym);
+  const all=entries.filter(e=>ymOf(e.date)===ym).sort(byTime);
+  const paidL=all.filter(e=>e.paid),pendL=all.filter(e=>!e.paid);
+  g('p-count').textContent=`${paidL.length} / ${all.length}`;
+  g('p-bar').style.width=(all.length?paidL.length/all.length*100:0)+'%';
+  g('p-paid').textContent=PLN(paidL.reduce((s,e)=>s+owed(e),0));
+  g('p-pend').textContent=PLN(pendL.reduce((s,e)=>s+owed(e),0));
+  const t=todayStr();
+  g('p-overdue').textContent=PLN(entries.filter(e=>!e.paid&&e.date<=t).reduce((s,e)=>s+owed(e),0));
+  document.querySelectorAll('#p-chips button').forEach(b=>b.classList.toggle('on',b.dataset.f===pay.f));
+  const list=all.filter(e=>pay.f==='all'||(pay.f==='unpaid'?!e.paid:e.paid));
+  g('p-list').innerHTML=list.length?list.map(e=>
+    `<div class="prow${e.paid?' paid':''}"><div><div class="d">${fmtDate(e.date)}${e.start_time?' · '+hm(e.start_time):''}</div><div class="t">${esc(titleOfEntry(e))}</div>`+
+    (e.home||e.away?`<div class="s">${esc(e.home)} – ${esc(e.away)}</div>`:'')+`</div>`+
+    `<div class="amt"><div class="num">${PLNs(owed(e))}</div>${NB(e.netto)&&NB(e.brutto)?`<div class="muted">brutto ${PLNs(e.brutto)}</div>`:''}`+
+    `<button class="paybtn" data-id="${e.id}">${e.paid?'Zapłacone ✓':'Niezapłacone'}</button></div></div>`).join(''):
+    '<div class="empty">Brak wpisów w tym widoku.</div>';
+}
+
+// ---------- LIMIT (dotychczasowa część) ----------
+let acIdx=-1,acMatches=[];
 function categories(){
   const last={};
   entries.forEach(e=>{const c=e.category||'Inne';if(!last[c]||e.date>last[c])last[c]=e.date;});
   return Object.keys(last).sort((a,b)=>last[b].localeCompare(last[a]));
 }
-
-// ---------- AUTOCOMPLETE ----------
-let acIdx=-1,acMatches=[];
-function escapeHtml(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function acShow(){
   const inp=g('f-cat'),box=g('ac-list'),t=inp.value.trim().toLowerCase();
   acMatches=categories().filter(c=>!t||c.toLowerCase().includes(t)).slice(0,8);
   if(!acMatches.length){box.classList.remove('on');box.innerHTML='';acIdx=-1;return;}
   acIdx=-1;
-  box.innerHTML=acMatches.map((c,i)=>{let label=escapeHtml(c);if(t){const pos=c.toLowerCase().indexOf(t);if(pos>=0)label=escapeHtml(c.slice(0,pos))+'<b>'+escapeHtml(c.slice(pos,pos+t.length))+'</b>'+escapeHtml(c.slice(pos+t.length));}return `<div class="ac-item" data-i="${i}">${label}</div>`;}).join('');
+  box.innerHTML=acMatches.map((c,i)=>{let label=esc(c);if(t){const pos=c.toLowerCase().indexOf(t);if(pos>=0)label=esc(c.slice(0,pos))+'<b>'+esc(c.slice(pos,pos+t.length))+'</b>'+esc(c.slice(pos+t.length));}return `<div class="ac-item" data-i="${i}">${label}</div>`;}).join('');
   box.classList.add('on');
   box.querySelectorAll('.ac-item').forEach(el=>el.onmousedown=ev=>{ev.preventDefault();pickCat(acMatches[+el.dataset.i]);});
 }
@@ -292,12 +886,7 @@ function acHide(){g('ac-list').classList.remove('on');acIdx=-1;}
 function pickCat(c){g('f-cat').value=c;acHide();g('f-brutto').focus();}
 function acMove(d){if(!acMatches.length)return;acIdx=(acIdx+d+acMatches.length)%acMatches.length;g('ac-list').querySelectorAll('.ac-item').forEach((el,i)=>el.classList.toggle('on',i===acIdx));}
 
-// ---------- RENDER ----------
-function monthLabel(ym){const[y,m]=ym.split('-');return `${MNAME[+m]} ${y}`;}
-function shiftMonth(ym,d){let[y,m]=ym.split('-').map(Number);m+=d;while(m<1){m+=12;y--;}while(m>12){m-=12;y++;}return `${y}-${pad(m)}`;}
 function entriesForMonth(ym){return entries.filter(e=>ymOf(e.date)===ym).sort((a,b)=>String(b.date).localeCompare(String(a.date)));}
-function owed(e){return NB(e.netto)||NB(e.brutto)||0;}
-
 function renderEntries(){
   g('m-label').textContent=monthLabel(state.month);
   g('m-name2').textContent=monthLabel(state.month);
@@ -309,20 +898,20 @@ function renderEntries(){
     const row=document.createElement('div');row.className='entry';
     row.innerHTML=
       `<div class="d num">${String(e.date).slice(8)}.${String(e.date).slice(5,7)}</div>`+
-      `<div><span class="cat">${escapeHtml(e.category||'Inne')}</span>`+
+      `<div><span class="cat">${esc(e.category||'Inne')}</span>`+
+        (e.home||e.away?`<div class="vals"><span class="n">${e.start_time?hm(e.start_time)+' · ':''}${esc(e.home)} – ${esc(e.away)}</span></div>`:'')+
         `<div class="vals">`+
           (NB(e.brutto)?`brutto <span class="${cls} num">${PLN(e.brutto)}</span>`:'<span class="n">brutto —</span>')+
           (NB(e.netto)?` · <span class="n">netto <span class="${cls} num">${PLN(e.netto)}</span></span>`:'')+
         `</div>`+
         `<button class="pstat ${e.paid?'p':'u'}" data-id="${e.id}">${e.paid?'● Zapłacone':'● Niezapłacone'}</button>`+
       `</div>`+
-      `<button class="del" title="Usuń" data-id="${e.id}">×</button>`;
+      `<button class="del" title="Usuń" aria-label="Usuń wpis" data-id="${e.id}">×</button>`;
     box.appendChild(row);
   });
-  box.querySelectorAll('.pstat').forEach(b=>b.onclick=async()=>{const e=entries.find(x=>x.id===b.dataset.id);if(e){e.paid=!e.paid;renderEntries();recalc();await updateEntryDB(e.id,{paid:e.paid});}});
-  box.querySelectorAll('.del').forEach(b=>b.onclick=async()=>{const id=b.dataset.id;entries=entries.filter(x=>x.id!==id);renderEntries();recalc();renderYear();await deleteEntryDB(id);toast('Usunięto');});
+  box.querySelectorAll('.pstat').forEach(b=>b.onclick=()=>togglePaid(b.dataset.id));
+  box.querySelectorAll('.del').forEach(b=>b.onclick=async()=>{const id=b.dataset.id;entries=entries.filter(x=>x.id!==id);renderAll();await deleteEntryDB(id);toast('Usunięto');});
 }
-
 function getVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
 function recalc(){
   const list=entriesForMonth(state.month);
@@ -358,9 +947,8 @@ function renderYear(){
     box.appendChild(row);
   }
 }
-function renderAll(){renderEntries();recalc();renderYear();}
+function renderAll(){renderEntries();recalc();renderYear();renderCal();renderPay();}
 
-// ---------- AKCJE ----------
 async function addEntry(){
   const date=g('f-date').value,cat=g('f-cat').value.trim()||'Inne';
   const b=parseFloat(g('f-brutto').value),n=parseFloat(g('f-netto').value);
@@ -386,17 +974,67 @@ function importData(file){
     if(!p||!Array.isArray(p.entries)){toast('To nie jest plik z danymi');return;}
     const rows=p.entries.filter(e=>e&&e.date).map(e=>({date:e.date,category:e.category||'Inne',brutto:NB(e.brutto),netto:NB(e.netto),paid:e.paid!==false}));
     toast('Importuję '+rows.length+' wpisów…');
-    const added=await bulkInsert(rows);
+    const added=(await bulkInsert(rows)).length;
     await loadEntries();renderAll();
     toast('Zaimportowano: '+added+' wpisów');
   };fr.readAsText(file);
 }
 
-// ---------- WIRING ----------
+// ---------- PODPIĘCIE ZDARZEŃ ----------
 g('btn-login').onclick=doLogin;
 g('btn-signup').onclick=doSignup;
 g('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 g('btn-logout').onclick=doLogout;
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.t));
+// kalendarz
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{cal.view=b.dataset.v;renderCal();});
+g('cal-body').addEventListener('click',ev=>{
+  const nav=ev.target.closest('[data-nav]');if(nav){calNav(nav.dataset.nav);return;}
+  const day=ev.target.closest('.mday');if(day){cal.sel=day.dataset.d;renderCal();return;}
+  const card=ev.target.closest('.mcard');if(card)openEditor(card.dataset.id);
+});
+g('ics-btn').onclick=exportIcs;
+g('g-sync').onclick=syncGoogle;
+g('ics-rem').value=state.rem;
+g('ics-rem').onchange=e=>{state.rem=e.target.value;saveState();};
+// modal
+wireEditor(g('m-body'),()=>editing,null);
+g('m-save').onclick=saveEditor;g('m-cancel').onclick=closeEditor;g('m-del').onclick=deleteEditor;
+g('modal').addEventListener('click',ev=>{if(ev.target===g('modal'))closeEditor();});
+// dodawanie
+g('judge').value=state.judge;
+g('judge').oninput=e=>{state.judge=e.target.value.trim();saveState();};
+g('add-files').onchange=e=>{
+  const n=e.target.files.length;
+  g('file-label').textContent=n?`Wybrano plików: ${n}. Kliknij, aby zmienić`:'Wybierz zrzuty ekranu lub PDF';
+  g('parse-btn').disabled=!n;setAddMsg('');
+};
+g('parse-btn').onclick=parseFiles;
+wireEditor(g('review'),i=>draft[i],(d,box)=>updateCard(+box.dataset.i));
+g('prices-body').addEventListener('input',ev=>{
+  const el=ev.target,v=parseFloat(el.value)||0;
+  if(el.dataset.r)state.rates[el.dataset.r][+el.dataset.i]=v;
+  else if(el.dataset.c)state.cnba[el.dataset.c]=v;
+  saveState();
+});
+g('prices-body').addEventListener('click',ev=>{
+  if(ev.target.id!=='prices-reset')return;
+  state.rates=JSON.parse(JSON.stringify(RATES0));state.cnba={...CNBA0};saveState();renderPrices();toast('Przywrócono domyślny cennik');
+});
+g('review').addEventListener('change',ev=>{
+  const t=ev.target;
+  if(t.id==='g-on'){state.gOn=t.checked;saveState();return;}
+  if(t.id==='g-rem'){state.rem=t.value;g('ics-rem').value=t.value;saveState();return;}
+  const c=t.closest('.inc');if(!c)return;
+  const i=+c.closest('.rcard').dataset.i;draft[i].inc=c.checked;updateCard(i);
+});
+g('review').addEventListener('click',ev=>{if(ev.target.id==='rv-save')saveDrafts();});
+// płatności
+g('p-prev').onclick=()=>{pay.month=shiftMonth(pay.month,-1);renderPay();};
+g('p-next').onclick=()=>{pay.month=shiftMonth(pay.month,1);renderPay();};
+g('p-chips').addEventListener('click',ev=>{const b=ev.target.closest('button');if(b){pay.f=b.dataset.f;renderPay();}});
+g('p-list').addEventListener('click',ev=>{const b=ev.target.closest('.paybtn');if(b)togglePaid(b.dataset.id);});
+// limit
 g('prev').onclick=()=>{state.month=shiftMonth(state.month,-1);saveState();renderAll();};
 g('next').onclick=()=>{state.month=shiftMonth(state.month,1);saveState();renderAll();};
 g('add-btn').onclick=addEntry;
@@ -415,6 +1053,7 @@ catInp.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault()
 (async function init(){
   g('f-date').value=todayStr();
   g('f-cat').value='Sędziowanie ';
+  renderPrices();
   if(!window.supabase||SUPABASE_URL.startsWith('WKLEJ')){
     g('l-msg').className='msg err';
     g('l-msg').textContent='Najpierw wklej URL i klucz Supabase w kodzie (sekcja KONFIGURACJA).';
