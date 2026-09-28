@@ -90,6 +90,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .mday.sel{background:var(--accentbg);border-color:var(--safe)}
 .mdots{display:flex;gap:2px;height:6px}
 .mdot{width:5px;height:5px;border-radius:50%;background:var(--safe)}
+.mdot.unpaid{background:var(--danger)}
 .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
 .bar button{font:inherit;font-size:13px;font-weight:500;padding:8px 14px;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer}
 .bar button:hover{background:var(--track)}
@@ -211,6 +212,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .pgrid input,.pgrid2 input{font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;text-align:right}
 .pgrid2{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin-top:8px}
 .pgrid2 label{font-size:13.5px}
+.remadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.remadd input{width:76px;font:inherit;font-size:16px;padding:8px 9px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
+.remadd select{font:inherit;font-size:14px;padding:8px 9px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--ink)}
+.remchip{display:inline-flex;align-items:center;gap:6px;background:var(--track);border-radius:999px;padding:6px 8px 6px 12px;font-size:13px;margin:0 6px 6px 0}
+.remchip button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
+.remchip button:hover{color:var(--danger)}
+.remempty{font-size:13px;color:var(--muted)}
 @media(prefers-reduced-motion:reduce){.fill,#toast,.pbar div{transition:none}}
 </style>
 </head>
@@ -247,15 +255,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <button data-v="month">Miesiąc</button>
     </div>
     <div id="cal-body"></div>
+
+    <div class="card" id="rem-card">
+      <h2>Przypomnienia</h2>
+      <div class="muted" style="margin-bottom:8px">Dodajesz raz, zapisuje się samo i działa dla wszystkich meczów — jak w Kalendarzu Google.</div>
+      <div id="rem-list"></div>
+      <div class="remadd">
+        <input type="number" id="rem-val" min="1" value="1" inputmode="numeric" aria-label="Liczba">
+        <select id="rem-unit" aria-label="Jednostka">
+          <option value="m">min. przed</option>
+          <option value="h">godz. przed</option>
+          <option value="d" selected>dni przed</option>
+        </select>
+        <button class="addbtn ghost" id="rem-add">Dodaj przypomnienie</button>
+      </div>
+    </div>
+
     <div class="bar">
       <button id="g-sync">Wyślij do Kalendarza Google</button>
       <button id="ics-btn">Pobierz plik .ics</button>
-      <select id="ics-rem" aria-label="Przypomnienia w pliku .ics">
-        <option value="both">Przypomnienia: dzień przed i 2 h przed</option>
-        <option value="2h">Przypomnienie: 2 h przed</option>
-        <option value="1d">Przypomnienie: dzień przed</option>
-        <option value="none">Bez przypomnień</option>
-      </select>
+      <button id="g-clean">Usuń duplikaty w Google</button>
     </div>
   </section>
 
@@ -268,6 +287,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <input type="file" id="add-files" accept="image/*,application/pdf" multiple style="display:none">
       <button class="addbtn" id="parse-btn" disabled>Odczytaj mecze</button>
       <div class="msgline" id="add-msg"></div>
+      <button class="addbtn ghost" id="manual-btn">Chcę wpisać mecz ręcznie (bez zrzutu)</button>
     </div>
     <div id="review" style="margin-top:14px"></div>
     <details class="card prices" id="prices" style="margin-top:14px">
@@ -374,7 +394,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 const SUPABASE_URL = 'https://kfujygapnwrikcowavsi.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_qsbZqHu1dzDYi58uy7rNcQ_-SeSdOvz';
 // Client ID z Google Cloud (patrz instrukcja). Puste = przycisk Google wyłączony.
-const GOOGLE_CLIENT_ID = '818053153998-513f5ot7qnnr948osl6b7thanlfolab4.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '';
 // ===================================
 
 const MNAME=['','Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
@@ -403,7 +423,8 @@ function toast(msg){const t=g('toast');t.textContent=msg||'Zapisano ✓';t.class
 
 // ---------- cennik domyślny (stawki brutto za mecz: [boisko, stolik]) ----------
 const RATES0={'3 LM':[200,75],'2 LK':[190,75],'U19':[160,75],'U17':[140,75],'U15':[125,75],'U14':[110,75],'U13':[110,75],'U12':[90,65],'U11':[90,65]};
-const CNBA0={a:220,b:180}; // CNBA netto: a = wt/czw sektor 1, b = wt/czw sektory 2 i 3 oraz cała środa
+// CNBA: a = wt/czw sektor 1, b = wt/czw sektory 2-3 oraz cała środa. Liczy się do limitu (brutto > 0).
+const CNBA0={a:{brutto:243,netto:220},b:{brutto:201,netto:182}};
 
 // ---------- stan lokalny (limit, miesiąc, nazwisko, cennik, przypomnienia) ----------
 const LS='bezrobotny-state-v1';
@@ -412,10 +433,10 @@ function loadState(){
   let s=null;try{s=JSON.parse(localStorage.getItem(LS));}catch(e){}
   if(!s||!s.limit)s={limit:2403,month:todayStr().slice(0,7)};
   if(!s.judge)s.judge='Emil Wiktorski';
-  if(!s.rem)s.rem='both';
+  if(!s.reminders||!Array.isArray(s.reminders))s.reminders=[1440,120];
   if(s.gOn===undefined)s.gOn=true;
   if(!s.rates)s.rates=JSON.parse(JSON.stringify(RATES0));
-  if(!s.cnba)s.cnba={...CNBA0};
+  if(!s.cnba||typeof s.cnba.a!=='object')s.cnba=JSON.parse(JSON.stringify(CNBA0)); // migracja ze starego formatu (same liczby)
   return s;
 }
 function saveState(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
@@ -431,23 +452,24 @@ const isTable=r=>['Sekretarz','Czas','Czas akcji','Stolik'].includes(r);
 function nettoOf(b){b=NB(b);if(!b)return 0;const tax=Math.floor(b*0.8*0.12+0.5+1e-9);return Math.round((b-tax)*100)/100;}
 function detectCat(s){s=String(s||'').toUpperCase();let m=s.match(/U\s?-?(19|17|15|14|13|12|11)(?!\d)/);if(m)return 'U'+m[1];if(/\b3\s?LM\b/.test(s))return '3 LM';if(/\b2\s?LK\b/.test(s))return '2 LK';return '';}
 function suggestRate(d){const r=state.rates[d.age_cat];if(!r)return 0;return isTable(d.role)?r[1]:r[0];}
-// CNBA: stałe kwoty NETTO, poza limitem (brutto = 0). Kwota ze zrzutu (np. 1 zł w eSOR) jest ignorowana.
-// Tylko wt-czw: wt/czw sektor 1 = 220; wt/czw sektory 2 i 3 oraz cała środa = 180; reszta: ręcznie
+// CNBA: stałe kwoty (brutto i netto), liczą się do limitu. Kwota ze zrzutu (np. 1 zł w eSOR) jest ignorowana.
+// Tylko wt-czw: wt/czw sektor 1 = tier "a"; wt/czw sektory 2 i 3 oraz cała środa = tier "b"; reszta: ręcznie
 const isCnba=d=>/cnba/i.test([d.city,d.league,d.home,d.away].join(' '));
-function cnbaNetto(d){
+function cnbaTier(d){
   const wd=d.date?pdate(d.date).getDay():-1;
-  if(wd<2||wd>4)return 0;
-  if(wd===3)return NB(state.cnba.b);
+  if(wd<2||wd>4)return null;
+  if(wd===3)return 'b';
   const m=[d.home,d.away,d.league].join(' ').match(/sektor\s*(\d+)/i),sec=m?+m[1]:0;
-  if(sec===1)return NB(state.cnba.a);
-  if(sec===2||sec===3)return NB(state.cnba.b);
-  return 0;
+  if(sec===1)return 'a';
+  if(sec===2||sec===3)return 'b';
+  return null;
 }
 // pierwszeństwo (poza CNBA): stawka podana na zrzucie > cennik > ręcznie
 function autoPrice(d){
   if(isCnba(d)){
-    if(!d.bm)d.brutto=0;
-    if(!d.nm)d.netto=cnbaNetto(d);
+    const t=cnbaTier(d),tier=t?state.cnba[t]:null;
+    if(!d.bm)d.brutto=tier?NB(tier.brutto):0;
+    if(!d.nm)d.netto=tier?NB(tier.netto):0;
     return;
   }
   if(!d.bm){const sr=isTable(d.role)?d.rate_table:d.rate_field;d.brutto=NB(sr)||suggestRate(d);}
@@ -456,7 +478,15 @@ function autoPrice(d){
 
 // ---------- AUTH ----------
 function showLogin(){g('login').classList.remove('hidden');g('app').classList.add('hidden');}
-function showApp(email){g('login').classList.add('hidden');g('app').classList.remove('hidden');g('who').textContent=email||'';}
+// Zakładka Limit jest prywatna: widzi ją tylko to jedno konto.
+const LIMIT_EMAIL='emil.wiktorski@onet.pl';
+function applyLimitGate(email){
+  const allowed=String(email||'').trim().toLowerCase()===LIMIT_EMAIL;
+  const btn=document.querySelector('#nav button[data-t="limit"]');
+  if(btn)btn.classList.toggle('hidden',!allowed);
+  if(!allowed&&!g('tab-limit').classList.contains('hidden'))switchTab('cal');
+}
+function showApp(email){g('login').classList.add('hidden');g('app').classList.remove('hidden');g('who').textContent=email||'';applyLimitGate(email);}
 async function doLogin(){
   const email=g('l-email').value.trim(),pass=g('l-pass').value;
   const m=g('l-msg');m.className='msg';m.textContent='Logowanie…';
@@ -510,6 +540,26 @@ const owed=e=>NB(e.netto)||NB(e.brutto)||0;
 const titleOf=e=>'E - sędziowanie'+(e.city?' '+e.city:'');
 const titleOfEntry=e=>e.start_time?titleOf(e):(e.category||'Wpis');
 
+// ---------- PRZYPOMNIENIA ----------
+function remLabel(min){
+  if(min%1440===0){const n=min/1440;return n+(n===1?' dzień przed':' dni przed');}
+  if(min%60===0){const n=min/60;return n+' godz. przed';}
+  return min+' min. przed';
+}
+function renderReminders(){
+  const box=g('rem-list');if(!box)return;
+  if(!state.reminders.length){box.innerHTML='<div class="remempty">Brak przypomnień — dodaj poniżej.</div>';return;}
+  box.innerHTML=state.reminders.slice().sort((a,b)=>a-b).map(m=>`<span class="remchip">${remLabel(m)}<button data-m="${m}" aria-label="Usuń przypomnienie ${remLabel(m)}">×</button></span>`).join('');
+}
+function addReminder(){
+  if(state.reminders.length>=5){toast('Maksymalnie 5 przypomnień (limit Kalendarza Google)');return;}
+  const v=parseInt(g('rem-val').value,10);
+  if(!v||v<=0){toast('Podaj liczbę większą od zera');return;}
+  const u=g('rem-unit').value,min=u==='d'?v*1440:u==='h'?v*60:v;
+  if(state.reminders.includes(min)){toast('To przypomnienie już jest');return;}
+  state.reminders.push(min);saveState();renderReminders();toast('Dodano: '+remLabel(min));
+}
+
 // ---------- ZAKŁADKI ----------
 function switchTab(t){
   ['cal','add','pay','limit'].forEach(k=>g('tab-'+k).classList.toggle('hidden',k!==t));
@@ -559,8 +609,9 @@ function viewMonth(){
   h+=`<div class="sumline">Mecze w miesiącu: <b>${n}</b>${n?` · netto <b class="num">${PLNs(net)}</b>`:''}</div>`;
   h+='<div class="mgrid">'+['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="mh">${x}</div>`).join('');
   for(let d=mondayOf(first);d<=last||((d.getDay()+6)%7)!==0;d=addDays(d,1)){
-    const ds=dstr(d),c=matchesOn(ds).length,inM=d.getMonth()===m-1;
-    h+=`<button class="mday${inM?'':' out'}${ds===t?' today':''}${ds===cal.sel?' sel':''}" data-d="${ds}" aria-label="${d.getDate()}.${pad(d.getMonth()+1)}${c?', mecze: '+c:''}"><span>${d.getDate()}</span><span class="mdots">${'<i class="mdot"></i>'.repeat(Math.min(c,3))}</span></button>`;
+    const ds=dstr(d),list=matchesOn(ds),c=list.length,inM=d.getMonth()===m-1;
+    const dots=list.slice(0,3).map(e=>`<i class="mdot${e.paid?'':' unpaid'}"></i>`).join('');
+    h+=`<button class="mday${inM?'':' out'}${ds===t?' today':''}${ds===cal.sel?' sel':''}" data-d="${ds}" aria-label="${d.getDate()}.${pad(d.getMonth()+1)}${c?', mecze: '+c:''}"><span>${d.getDate()}</span><span class="mdots">${dots}</span></button>`;
   }
   h+='</div>';
   const sd=pdate(cal.sel),list=matchesOn(cal.sel);
@@ -592,18 +643,19 @@ function gToken(){ // wywołaj bezpośrednio w kliknięciu, inaczej Safari zablo
     c.requestAccessToken();
   });
 }
-// stałe ID wydarzenia = ten sam mecz nigdy nie zdubluje się w Google (kolejne wysłanie aktualizuje)
-const gid=e=>{let s='mc'+String(e.id).toLowerCase().replace(/[^0-9a-v]/g,'');while(s.length<5)s+='0';return s.slice(0,100);};
+// ID wydarzenia liczone z treści meczu (data, godzina, drużyny, rola) — nie z ID wiersza w bazie.
+// Dzięki temu ten sam mecz zawsze trafia w to samo miejsce w Google, nawet jeśli lokalny wpis
+// zostanie usunięty i dodany ponownie (np. po powtórnym wgraniu tego samego zrzutu).
+function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h>>>0;}
+const entryKey=e=>[e.date,hm(e.start_time),normT(e.home),normT(e.away),e.role||''].join('|');
+const gid=e=>{let s='e'+fnv1a(entryKey(e)).toString(32);while(s.length<5)s+='0';return s.slice(0,100);};
 function gBody(e){
-  const ov=[];
-  if(state.rem==='both'||state.rem==='1d')ov.push({method:'popup',minutes:1440});
-  if(state.rem==='both'||state.rem==='2h')ov.push({method:'popup',minutes:120});
   return {summary:titleOf(e),
     location:[e.venue,e.city&&e.city!=='CNBA'?e.city:''].filter(Boolean).join(', '),
     description:[e.league,(e.home||e.away)?e.home+' - '+e.away:'',e.role?'Rola: '+e.role:''].filter(Boolean).join('\n'),
     start:{dateTime:`${e.date}T${hm(e.start_time)}:00`,timeZone:'Europe/Warsaw'},
     end:{dateTime:`${e.date}T${hm(e.end_time||e.start_time)}:00`,timeZone:'Europe/Warsaw'},
-    colorId:'6',reminders:{useDefault:false,overrides:ov}};
+    colorId:'6',reminders:{useDefault:false,overrides:state.reminders.map(m=>({method:'popup',minutes:m}))}};
 }
 async function pushGoogle(list,tok){
   const base='https://www.googleapis.com/calendar/v3/calendars/primary/events';
@@ -618,6 +670,39 @@ async function pushGoogle(list,tok){
     }catch(x){err=x.message;}
   }
   return {ok,fail:list.length-ok,err};
+}
+async function listAllGoogleEvents(tok){
+  const out=[];let pageToken='';
+  const base='https://www.googleapis.com/calendar/v3/calendars/primary/events';
+  do{
+    const url=base+'?singleEvents=true&maxResults=2500&timeMin='+encodeURIComponent(new Date().toISOString())+(pageToken?'&pageToken='+pageToken:'');
+    const r=await fetch(url,{headers:{'Authorization':'Bearer '+tok}});
+    const j=await r.json();
+    if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
+    out.push(...(j.items||[]));
+    pageToken=j.nextPageToken||'';
+  }while(pageToken);
+  return out;
+}
+async function cleanupGoogleDuplicates(){
+  if(!GOOGLE_CLIENT_ID){toast('Najpierw wpisz GOOGLE_CLIENT_ID w kodzie');return;}
+  const tokP=gToken();tokP.catch(()=>{});
+  try{
+    const tok=await tokP;toast('Szukam duplikatów w Google…');
+    const items=(await listAllGoogleEvents(tok)).filter(e=>e.status!=='cancelled'&&e.summary&&e.summary.startsWith('E - sędziowanie'));
+    const groups={};
+    items.forEach(e=>{const k=e.summary+'|'+(e.start&&(e.start.dateTime||e.start.date))+'|'+(e.end&&(e.end.dateTime||e.end.date));(groups[k]=groups[k]||[]).push(e);});
+    let del=0;
+    for(const k in groups){
+      const grp=groups[k];if(grp.length<2)continue;
+      grp.sort((a,b)=>(a.created||'').localeCompare(b.created||''));
+      for(let i=1;i<grp.length;i++){
+        const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+grp[i].id,{method:'DELETE',headers:{'Authorization':'Bearer '+tok}});
+        if(r.ok||r.status===410)del++;
+      }
+    }
+    toast(del?`Usunięto duplikatów w Google: ${del}`:'Nie znalazłem duplikatów w Google');
+  }catch(e){toast('Błąd czyszczenia: '+e.message);}
 }
 async function syncGoogle(){
   if(!GOOGLE_CLIENT_ID){toast('Najpierw wpisz GOOGLE_CLIENT_ID w kodzie');return;}
@@ -634,8 +719,13 @@ async function syncGoogle(){
 // ---------- EKSPORT .ics ----------
 const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
 const icsUtc=(ds,t)=>{const[y,m,d]=ds.split('-').map(Number),[h,mi]=hm(t).split(':').map(Number);return new Date(y,m-1,d,h,mi).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');};
+function icsDur(min){
+  let d=Math.floor(min/1440);min-=d*1440;const h=Math.floor(min/60);min-=h*60;
+  let s='-P';if(d)s+=d+'D';if(h||min){s+='T';if(h)s+=h+'H';if(min)s+=min+'M';}
+  return s==='-P'?'-PT0M':s;
+}
 function exportIcs(){
-  const rem=g('ics-rem').value,now=todayStr();
+  const now=todayStr();
   const list=entries.filter(e=>e.start_time&&e.date>=now).sort((a,b)=>(a.date+hm(a.start_time)).localeCompare(b.date+hm(b.start_time)));
   if(!list.length){toast('Brak nadchodzących meczów');return;}
   const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
@@ -645,8 +735,7 @@ function exportIcs(){
     L.push('BEGIN:VEVENT','UID:'+e.id+'@sedzia','DTSTAMP:'+stamp,'DTSTART:'+icsUtc(e.date,e.start_time),'DTEND:'+icsUtc(e.date,e.end_time||e.start_time),
       'SUMMARY:'+icsEsc(titleOf(e)),'LOCATION:'+icsEsc([e.venue,e.city&&e.city!=='CNBA'?e.city:''].filter(Boolean).join(', ')),
       'DESCRIPTION:'+icsEsc([e.league,(e.home||e.away)?e.home+' - '+e.away:'',e.role?'Rola: '+e.role:''].filter(Boolean).join('. ')));
-    if(rem==='both'||rem==='1d')L.push(...alarm('-P1D','Mecz jutro'));
-    if(rem==='both'||rem==='2h')L.push(...alarm('-PT2H','Mecz za 2 godziny'));
+    state.reminders.forEach(min=>L.push(...alarm(icsDur(min),'Przypomnienie: '+remLabel(min))));
     L.push('END:VEVENT');
   });
   L.push('END:VCALENDAR');
@@ -747,8 +836,8 @@ function makeDraft(x){
   d.dup=isDup(d);d.inc=!d.dup;
   return d;
 }
-const missing=d=>[!d.date&&'data',!d.start&&'godzina',!d.city&&'miasto',(isCnba(d)?!d.netto:!d.brutto)&&'kwota'].filter(Boolean);
-const sumLine=d=>`${d.date?fmtDate(d.date):'brak daty'} · ${d.start||'??'}–${d.end||'??'} · ${esc(d.city||'brak miasta')} · ${esc(d.role)} · `+(isCnba(d)?(d.netto?`${PLNs(d.netto)} netto (poza limitem)`:'brak kwoty'):(d.brutto?`${PLNs(d.brutto)} brutto / ${PLNs(d.netto)} netto`:'brak kwoty'));
+const missing=d=>[!d.date&&'data',!d.start&&'godzina',!d.city&&'miasto',!d.brutto&&'kwota'].filter(Boolean);
+const sumLine=d=>`${d.date?fmtDate(d.date):'brak daty'} · ${d.start||'??'}–${d.end||'??'} · ${esc(d.city||'brak miasta')} · ${esc(d.role)} · `+(d.brutto?`${PLNs(d.brutto)} brutto / ${PLNs(d.netto)} netto`:'brak kwoty');
 function renderReview(warnings){
   const box=g('review');
   if(!draft.length){box.innerHTML='';return;}
@@ -759,8 +848,7 @@ function renderReview(warnings){
       `<label class="rtop"><input type="checkbox" class="inc"${d.inc?' checked':''}><span class="rtitle">${esc(titleOf(d))}</span>${d.dup?'<span class="tag">już w kalendarzu</span>':''}</label>`+
       `<div class="rmatch">${esc(d.home)} – ${esc(d.away)}</div><div class="rsum">${sumLine(d)}</div>`+
       `<details${miss.length?' open':''}><summary>Popraw</summary>${editorHTML(d,i)}</details></div>`;}).join('')+'</div>';
-  const remOpts=[['both','dzień przed i 2 h przed'],['2h','2 h przed'],['1d','dzień przed'],['none','bez przypomnień']].map(([v,t])=>`<option value="${v}"${state.rem===v?' selected':''}>${t}</option>`).join('');
-  h+=GOOGLE_CLIENT_ID?`<div class="card gopt"><label class="rtop"><input type="checkbox" id="g-on"${state.gOn?' checked':''}><span>Dodaj też do Kalendarza Google</span></label><div class="f" style="margin:8px 0 0 30px"><label for="g-rem">Przypomnienia w Google</label><select id="g-rem">${remOpts}</select></div></div>`
+  h+=GOOGLE_CLIENT_ID?`<div class="card gopt"><label class="rtop"><input type="checkbox" id="g-on"${state.gOn?' checked':''}><span>Dodaj też do Kalendarza Google</span></label><div class="muted" style="margin:6px 0 0 30px">Użyte zostaną przypomnienia ustawione w zakładce Kalendarz.</div></div>`
     :`<div class="muted" style="margin-bottom:10px">Kalendarz Google jest wyłączony: wpisz GOOGLE_CLIENT_ID w kodzie.</div>`;
   h+=`<div class="savebar"><button class="addbtn" id="rv-save"></button></div>`;
   box.innerHTML=h;updateReviewTotals();
@@ -778,6 +866,13 @@ function updateCard(i){
   c.querySelector('.rsum').innerHTML=sumLine(d);
   c.classList.toggle('off',!d.inc);c.classList.toggle('warn',missing(d).length>0);
   updateReviewTotals();
+}
+function addManualDraft(){
+  const d=makeDraft({date:todayStr(),time:'',home:'',away:'',venue:'',city:'',league:'',age_cat:'',role:'Sędzia',format:'liga'});
+  d.start='';d.end='';d.ea=true;d.bm=false;d.nm=false;d.brutto=0;d.netto=0;d.dup=false;d.inc=true;
+  draft.push(d);renderReview();
+  const el=document.querySelector(`#rv-list .rcard[data-i="${draft.length-1}"]`);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function parseFiles(){
   const files=[...g('add-files').files];
@@ -834,9 +929,11 @@ function renderPrices(){
   g('prices-body').innerHTML=
     `<div class="pgrid"><div class="ph">Kategoria (brutto)</div><div class="ph">Boisko</div><div class="ph">Stolik</div>`+
     AGE.slice(1).map(k=>`<div>${k}</div><input type="number" inputmode="decimal" data-r="${k}" data-i="0" value="${state.rates[k][0]}"><input type="number" inputmode="decimal" data-r="${k}" data-i="1" value="${state.rates[k][1]}">`).join('')+`</div>`+
-    `<h2 style="margin-top:16px">CNBA (netto, poza limitem)</h2>`+
-    `<div class="pgrid2"><label>Wtorek i czwartek, sektor 1</label><input type="number" inputmode="decimal" data-c="a" value="${state.cnba.a}">`+
-    `<label>Wtorek i czwartek sektory 2 i 3 oraz cała środa</label><input type="number" inputmode="decimal" data-c="b" value="${state.cnba.b}"></div>`+
+    `<h2 style="margin-top:16px">CNBA (liczy się do limitu)</h2>`+
+    `<div class="pgrid2"><label>Wtorek i czwartek, sektor 1 — brutto</label><input type="number" inputmode="decimal" data-c="a" data-k="brutto" value="${state.cnba.a.brutto}">`+
+    `<label>Wtorek i czwartek, sektor 1 — netto</label><input type="number" inputmode="decimal" data-c="a" data-k="netto" value="${state.cnba.a.netto}"></div>`+
+    `<div class="pgrid2"><label>Wt/czw sektory 2-3 i cała środa — brutto</label><input type="number" inputmode="decimal" data-c="b" data-k="brutto" value="${state.cnba.b.brutto}">`+
+    `<label>Wt/czw sektory 2-3 i cała środa — netto</label><input type="number" inputmode="decimal" data-c="b" data-k="netto" value="${state.cnba.b.netto}"></div>`+
     `<div class="muted" style="margin-top:10px">Zmiana dotyczy nowo odczytanych meczów. Stawka podana na zrzucie turnieju ma pierwszeństwo (nie dotyczy CNBA).</div>`+
     `<button class="addbtn ghost" id="prices-reset" style="margin-top:12px">Przywróć domyślne</button>`;
 }
@@ -947,7 +1044,7 @@ function renderYear(){
     box.appendChild(row);
   }
 }
-function renderAll(){renderEntries();recalc();renderYear();renderCal();renderPay();}
+function renderAll(){renderEntries();recalc();renderYear();renderCal();renderPay();renderReminders();}
 
 async function addEntry(){
   const date=g('f-date').value,cat=g('f-cat').value.trim()||'Inne';
@@ -995,8 +1092,13 @@ g('cal-body').addEventListener('click',ev=>{
 });
 g('ics-btn').onclick=exportIcs;
 g('g-sync').onclick=syncGoogle;
-g('ics-rem').value=state.rem;
-g('ics-rem').onchange=e=>{state.rem=e.target.value;saveState();};
+g('g-clean').onclick=cleanupGoogleDuplicates;
+g('rem-add').onclick=addReminder;
+g('rem-list').addEventListener('click',ev=>{
+  const b=ev.target.closest('button[data-m]');if(!b)return;
+  state.reminders=state.reminders.filter(x=>x!==(+b.dataset.m));saveState();renderReminders();
+});
+g('manual-btn').onclick=addManualDraft;
 // modal
 wireEditor(g('m-body'),()=>editing,null);
 g('m-save').onclick=saveEditor;g('m-cancel').onclick=closeEditor;g('m-del').onclick=deleteEditor;
@@ -1014,17 +1116,16 @@ wireEditor(g('review'),i=>draft[i],(d,box)=>updateCard(+box.dataset.i));
 g('prices-body').addEventListener('input',ev=>{
   const el=ev.target,v=parseFloat(el.value)||0;
   if(el.dataset.r)state.rates[el.dataset.r][+el.dataset.i]=v;
-  else if(el.dataset.c)state.cnba[el.dataset.c]=v;
+  else if(el.dataset.c)state.cnba[el.dataset.c][el.dataset.k]=v;
   saveState();
 });
 g('prices-body').addEventListener('click',ev=>{
   if(ev.target.id!=='prices-reset')return;
-  state.rates=JSON.parse(JSON.stringify(RATES0));state.cnba={...CNBA0};saveState();renderPrices();toast('Przywrócono domyślny cennik');
+  state.rates=JSON.parse(JSON.stringify(RATES0));state.cnba=JSON.parse(JSON.stringify(CNBA0));saveState();renderPrices();toast('Przywrócono domyślny cennik');
 });
 g('review').addEventListener('change',ev=>{
   const t=ev.target;
   if(t.id==='g-on'){state.gOn=t.checked;saveState();return;}
-  if(t.id==='g-rem'){state.rem=t.value;g('ics-rem').value=t.value;saveState();return;}
   const c=t.closest('.inc');if(!c)return;
   const i=+c.closest('.rcard').dataset.i;draft[i].inc=c.checked;updateCard(i);
 });
